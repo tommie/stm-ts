@@ -1,5 +1,6 @@
 import { afterEach, expect, suite, test, vi } from "vitest";
 
+import { DeleteValueChange, SetValueChange } from "./change";
 import { hooks } from "./hooks";
 import * as cut from "./proxy";
 
@@ -80,5 +81,32 @@ suite("hooks", () => {
     const got = cut.newRoot(want);
 
     expect(hooks.newRoot).toBeCalledWith(want, got);
+  });
+
+  test("change set", () => {
+    hooks.change = vi.fn();
+
+    const got = cut.newRoot({ a: true } as { a: boolean });
+    got.a = false;
+
+    expect(hooks.change).toBeCalledWith({
+      type: "setvalue",
+      target: got,
+      property: "a",
+      value: false,
+    } satisfies SetValueChange);
+  });
+
+  test("change delete", () => {
+    hooks.change = vi.fn();
+
+    const got = cut.newRoot({ a: true } as { a: boolean });
+    delete got.a;
+
+    expect(hooks.change).toBeCalledWith({
+      type: "deletevalue",
+      target: got,
+      property: "a",
+    } satisfies DeleteValueChange);
   });
 });

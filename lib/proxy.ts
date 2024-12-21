@@ -78,6 +78,13 @@ const HANDLER: ProxyHandler<AnyTarget> = {
       return true;
     }
 
+    hooks.change({
+      type: "setvalue",
+      target: proxies.get(target) ?? target,
+      property: prop,
+      value,
+    });
+
     target[GENERATION].set(prop, incrementGeneration());
     target[prop] = value;
     return true;
@@ -88,6 +95,12 @@ const HANDLER: ProxyHandler<AnyTarget> = {
       currentTx.setValue(target, prop, TOMBSTONE);
       return true;
     }
+
+    hooks.change({
+      type: "deletevalue",
+      target: proxies.get(target) ?? target,
+      property: prop,
+    });
 
     target[GENERATION].set(prop, incrementGeneration());
     delete target[prop];

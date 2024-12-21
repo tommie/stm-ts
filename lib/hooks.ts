@@ -19,6 +19,9 @@ export const hooks = {
   // pass it along to the original commit hook.
   commit(_tx: Transaction, _changes: Iterable<Change>, _nested: boolean): (() => void) | void {},
 
+  // Invoked when a proxied object will be updated outside of a transaction.
+  change(_change: Change) {},
+
   // Invoked when the transaction is being disposed.
   dispose(_tx: Transaction, _uncommitted: boolean) {},
 
