@@ -1,0 +1,4 @@
+#!/bin/sh
+
+yarn test --run
+yarn format-check .
