@@ -1,7 +1,8 @@
 import { afterEach, expect, suite, test, vi } from "vitest";
 
+import { Change } from "./change";
 import { hooks } from "./hooks";
-import { DeleteValueChange, GENERATION, SetValueChange } from "./object";
+import { GENERATION } from "./object";
 import * as cut from "./proxy";
 import { TransactionConflictError } from "./transaction";
 
@@ -215,29 +216,35 @@ suite("hooks", () => {
   });
 
   test("change set", () => {
-    hooks.change = vi.fn();
+    const changes: Change[] = [];
+    hooks.change = (_target, changeFun) => changes.push(changeFun());
 
     const got = cut.newRoot({ a: true } as { a: boolean });
     got.a = false;
 
-    expect(hooks.change).toBeCalledWith({
-      type: "setvalue",
-      target: got,
-      property: "a",
-      value: false,
-    } satisfies SetValueChange);
+    expect(changes).toEqual([
+      {
+        type: "setvalue",
+        target: got,
+        property: "a",
+        value: false,
+      },
+    ]);
   });
 
   test("change delete", () => {
-    hooks.change = vi.fn();
+    const changes: Change[] = [];
+    hooks.change = (_target, changeFun) => changes.push(changeFun());
 
     const got = cut.newRoot({ a: true } as { a: boolean });
     delete got.a;
 
-    expect(hooks.change).toBeCalledWith({
-      type: "deletevalue",
-      target: got,
-      property: "a",
-    } satisfies DeleteValueChange);
+    expect(changes).toEqual([
+      {
+        type: "deletevalue",
+        target: got,
+        property: "a",
+      },
+    ]);
   });
 });

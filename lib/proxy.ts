@@ -89,12 +89,13 @@ const HANDLER: ProxyHandler<AnyTarget> = {
       return Reflect.set(getBuffer(currentTx, target).getWriteValue(), prop, value);
     }
 
-    hooks.change({
+    const proxy = proxies.get(target) ?? target;
+    hooks.change(proxy, () => ({
       type: "setvalue",
-      target: proxies.get(target) ?? target,
+      target: proxy,
       property: prop,
       value,
-    });
+    }));
 
     target[GENERATION] = incrementGeneration();
     return Reflect.set(target, prop, value);
@@ -105,11 +106,12 @@ const HANDLER: ProxyHandler<AnyTarget> = {
       return Reflect.deleteProperty(getBuffer(currentTx, target).getWriteValue(), prop);
     }
 
-    hooks.change({
+    const proxy = proxies.get(target) ?? target;
+    hooks.change(proxy, () => ({
       type: "deletevalue",
-      target: proxies.get(target) ?? target,
+      target: proxy,
       property: prop,
-    });
+    }));
 
     target[GENERATION] = incrementGeneration();
     return Reflect.deleteProperty(target, prop);
@@ -127,7 +129,7 @@ export abstract class ObjectBufferBase<T extends AnyTarget, C extends Change> ex
   constructor(
     protected readonly target: T,
     protected readonly tx: Pick<TransactionImpl, "generation">,
-    outer?: ObjectBuffer<T>,
+    outer?: ObjectBufferBase<T, C>,
   ) {
     super();
 
