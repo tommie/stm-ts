@@ -1,8 +1,9 @@
 import { afterEach, expect, suite, test, vi } from "vitest";
 
-import { DeleteValueChange, SetValueChange } from "./change";
 import { hooks } from "./hooks";
+import { DeleteValueChange, GENERATION, SetValueChange } from "./object";
 import * as cut from "./proxy";
+import { TransactionConflictError } from "./transaction";
 
 suite("without transaction", () => {
   test("newRoot/get", () => {
@@ -68,6 +69,136 @@ suite("without transaction", () => {
     expect("b" in got).toBe(false);
   });
 });
+
+suite("ObjectBuffer", () => {
+  test("checkCommittable", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.getWriteValue().a = false;
+
+    buf.checkCommittable();
+
+    expect(target.a).toEqual(true);
+    expect(target[GENERATION]).toEqual(1);
+  });
+
+  test("checkCommittable write conflict", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.getWriteValue().a = false;
+
+    target[GENERATION] = 3;
+
+    expect(() => buf.checkCommittable()).toThrowError(TransactionConflictError);
+  });
+
+  test("checkCommittable read conflict", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.getReadValue();
+
+    target[GENERATION] = 3;
+
+    expect(() => buf.checkCommittable()).toThrowError(TransactionConflictError);
+  });
+
+  test("checkMergeableInto", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 3 });
+    buf.getWriteValue();
+
+    const buf2 = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.checkMergeableInto(buf2);
+
+    expect(target.a).toEqual(true);
+    expect(target[GENERATION]).toEqual(1);
+  });
+
+  test("checkMergeableInto target write conflict", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 3 });
+    buf.getWriteValue();
+
+    target[GENERATION] = 4;
+
+    const buf2 = new cut.ObjectBuffer(target, { generation: 2 });
+
+    expect(() => buf.checkMergeableInto(buf2)).toThrowError(TransactionConflictError);
+  });
+
+  test("checkMergeableInto write/write conflict", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 3 });
+    buf.getWriteValue();
+
+    const buf2 = new cut.ObjectBuffer(target, { generation: 2 });
+    buf2.getWriteValue();
+
+    expect(() => buf.checkMergeableInto(buf2)).toThrowError(TransactionConflictError);
+  });
+
+  test("checkMergeableInto read/write conflict", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.getReadValue();
+
+    target[GENERATION] = 3;
+
+    const buf2 = new cut.ObjectBuffer(target, { generation: 3 });
+    buf2.getWriteValue();
+
+    expect(() => buf.checkMergeableInto(buf2)).toThrowError(TransactionConflictError);
+  });
+
+  test("commit set", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.getWriteValue().a = false;
+
+    buf.commit();
+
+    expect(target.a).toEqual(false);
+    expect(target[GENERATION]).toEqual(2);
+  });
+
+  test("commit delete", () => {
+    const target = { a: true, [GENERATION]: 1 } as { a?: boolean; [GENERATION]: number };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    delete buf.getWriteValue().a;
+
+    buf.commit();
+
+    expect("a" in target).toEqual(false);
+    expect(target[GENERATION]).toEqual(2);
+  });
+
+  test("mergeInto set", () => {
+    const target = { a: true, [GENERATION]: 1 } as { a?: boolean; [GENERATION]: number };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    buf.getWriteValue().a = false;
+
+    const buf2 = new cut.ObjectBuffer(target, { generation: 3 });
+    buf.mergeInto(buf2);
+
+    expect(buf2.getReadValue().a).toEqual(false);
+    expect(target.a).toEqual(true);
+    expect(target[GENERATION]).toEqual(1);
+  });
+
+  test("mergeInto delete", () => {
+    const target = { a: true, [GENERATION]: 1 } as { a?: boolean; [GENERATION]: number };
+    const buf = new cut.ObjectBuffer(target, { generation: 2 });
+    delete buf.getWriteValue().a;
+
+    const buf2 = new cut.ObjectBuffer(target, { generation: 3 });
+    buf.mergeInto(buf2);
+
+    expect("a" in buf2.getReadValue()).toEqual(false);
+    expect("a" in target).toEqual(true);
+    expect(target[GENERATION]).toEqual(1);
+  });
+});
+
 suite("hooks", () => {
   const origHooks = { ...hooks };
   afterEach(() => {

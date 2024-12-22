@@ -1,19 +1,8 @@
-import { AnyProp, AnyTarget } from "./object";
-
-// A change signaling the replacement of a property value.
-export interface DeleteValueChange {
-  type: "deletevalue";
-  target: AnyTarget;
-  property: AnyProp;
-}
-
-// A change signaling the replacement of a property value.
-export interface SetValueChange<T = any> {
-  type: "setvalue";
-  target: AnyTarget;
-  property: AnyProp;
-  value: T;
-}
+export interface TransactionChanges {}
 
 // Some change that happened in the transaction.
-export type Change = DeleteValueChange | SetValueChange;
+export type Change = Values<TransactionChanges>;
+
+type Values<T extends Record<string, any>, K extends keyof T = keyof T> = K extends any
+  ? T[K]
+  : never;

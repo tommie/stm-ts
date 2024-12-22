@@ -2,363 +2,101 @@ import { afterEach, expect, suite, test, vi } from "vitest";
 
 import { Change } from "./change";
 import { hooks } from "./hooks";
-import { newRoot } from "./proxy";
+import { AnyTarget, GENERATION } from "./object";
 import * as cut from "./transaction";
 
+const MockBuffer = vi
+  .fn()
+  .mockImplementation((_target: AnyTarget, _tx: cut.TransactionImpl, _outer: cut.Buffer) => {
+    return {
+      changes: vi.fn(),
+      checkCommittable: vi.fn(),
+      checkMergeableInto: vi.fn(),
+      commit: vi.fn(),
+      mergeInto: vi.fn(),
+    } satisfies cut.Buffer;
+  });
+
 suite("transaction", () => {
-  test("newTransaction", () => {
-    const tx = cut.newTransaction();
-
-    tx.dispose();
+  test("newTransaction + dispose", () => {
+    cut.newTransaction().dispose();
   });
 
-  test("write/write conflict", () => {
-    const got = newRoot({ a: 0 } as { a: number });
-    const tx1 = cut.newTransaction();
-    const tx2 = cut.newTransaction();
+  test("commit", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const tx = new cut.TransactionImpl(2);
 
     try {
-      tx1.call(() => {
-        got.a = 1;
-      });
-
-      tx2.call(() => {
-        got.a = 2;
-      });
-
-      tx1.commit();
-
-      expect(() => tx2.commit()).toThrowError(cut.TransactionConflictError);
-    } finally {
-      tx2.dispose();
-      tx1.dispose();
-    }
-  });
-
-  test("write/write conflict outside", () => {
-    const got = newRoot({ a: 0 } as { a: number });
-    const tx = cut.newTransaction();
-
-    try {
-      tx.call(() => {
-        got.a = 1;
-      });
-
-      got.a = 2;
-
-      expect(() => tx.commit()).toThrowError(cut.TransactionConflictError);
-    } finally {
-      tx.dispose();
-    }
-  });
-
-  test("read/write conflict", () => {
-    const got = newRoot({ a: 0 } as { a: number });
-    const tx1 = cut.newTransaction();
-    const tx2 = cut.newTransaction();
-
-    try {
-      tx1.call(() => {
-        got.a = 1;
-      });
-
-      tx2.call(() => {
-        expect(got.a).toEqual(0);
-      });
-
-      tx1.commit();
-
-      expect(() => tx2.commit()).toThrowError(cut.TransactionConflictError);
-    } finally {
-      tx2.dispose();
-      tx1.dispose();
-    }
-  });
-
-  test("read/write conflict outside", () => {
-    const got = newRoot({ a: 0 } as { a: number });
-    const tx = cut.newTransaction();
-
-    try {
-      tx.call(() => {
-        got.a as void;
-      });
-
-      // This write will create a new generation.
-      got.a = 2;
-
-      expect(() => tx.commit()).toThrowError(cut.TransactionConflictError);
-    } finally {
-      tx.dispose();
-    }
-  });
-
-  test("write/read conflict outside", () => {
-    const got = newRoot({ a: 0 } as { a: number });
-    const tx = cut.newTransaction();
-
-    try {
-      tx.call(() => {
-        got.a = 2;
-      });
-
-      // This read isn't tracked.
-      got.a as void;
+      const buf = tx.getBuffer(target, MockBuffer);
 
       tx.commit();
+
+      expect(buf.checkCommittable).toHaveBeenCalled();
+      expect(buf.commit).toHaveBeenCalled();
+
+      expect(buf.checkMergeableInto).not.toHaveBeenCalled();
+      expect(buf.mergeInto).not.toHaveBeenCalled();
     } finally {
       tx.dispose();
     }
   });
 
-  test("enumerate/write conflict", () => {
-    const got = newRoot({} as { a?: number });
-    const tx1 = cut.newTransaction();
-    const tx2 = cut.newTransaction();
+  test("commit nested", () => {
+    const target = { a: true, [GENERATION]: 1 };
+    const tx1 = new cut.TransactionImpl(2);
+    const tx2 = new cut.TransactionImpl(3, tx1);
 
     try {
-      tx1.call(() => {
-        got.a = 1;
-      });
-
-      tx2.call(() => {
-        expect(Object.keys(got)).toEqual([]);
-      });
-
-      tx1.commit();
-
-      expect(() => tx2.commit()).toThrowError(cut.TransactionConflictError);
-    } finally {
-      tx2.dispose();
-      tx1.dispose();
-    }
-  });
-
-  test("enumerate/dellete conflict", () => {
-    const got = newRoot({ a: 42 } as { a?: number });
-    const tx1 = cut.newTransaction();
-    const tx2 = cut.newTransaction();
-
-    try {
-      tx1.call(() => {
-        delete got.a;
-      });
-
-      tx2.call(() => {
-        expect(Object.keys(got)).toEqual(["a"]);
-      });
-
-      tx1.commit();
-
-      expect(() => tx2.commit()).toThrowError(cut.TransactionConflictError);
-    } finally {
-      tx2.dispose();
-      tx1.dispose();
-    }
-  });
-
-  test("write + read", () => {
-    const got = newRoot({ a: 0 } as { a: number });
-    const tx1 = cut.newTransaction();
-    const tx2 = cut.newTransaction();
-
-    try {
-      tx1.call(() => {
-        got.a = 1;
-      });
-
-      tx1.commit();
-
-      tx2.call(() => {
-        expect(got.a).toEqual(1);
-      });
+      const buf = tx2.getBuffer(target, MockBuffer);
 
       tx2.commit();
+
+      expect(buf.checkCommittable).not.toHaveBeenCalled();
+      expect(buf.commit).not.toHaveBeenCalled();
+
+      expect(buf.checkMergeableInto).toHaveBeenCalled();
+      expect(buf.mergeInto).toHaveBeenCalled();
     } finally {
       tx2.dispose();
-      tx1.dispose();
+    }
+  });
+
+  test("call", () => {
+    const tx = new cut.TransactionImpl(2);
+
+    try {
+      tx.call(() => {
+        expect(cut.currentTx).toEqual(tx);
+      });
+    } finally {
+      tx.dispose();
     }
   });
 });
 
-suite("inTransaction commit", () => {
-  test("set/get", () => {
-    const got = newRoot({ a: true } as { a: boolean });
+suite("inTransaction", () => {
+  test("commit", () => {
+    const target = { a: true, [GENERATION]: 1 };
 
-    cut.inTransaction(() => {
-      got.a = true;
-
-      expect(got.a).toEqual(true);
+    const buf = cut.inTransaction(() => {
+      return cut.currentTx!.getBuffer(target, MockBuffer);
     });
 
-    expect(got).toEqual({
-      a: true,
-    });
+    expect(buf.commit).toHaveBeenCalled();
   });
 
-  test("keys", () => {
-    const got = newRoot({} as { a?: boolean });
+  test("abort", () => {
+    const target = { a: true, [GENERATION]: 1 };
 
-    cut.inTransaction(() => {
-      got.a = true;
-
-      expect(Object.keys(got)).toEqual(["a"]);
-    });
-  });
-
-  test("delete/has", () => {
-    const got = newRoot({ a: true } as { a?: boolean });
-
-    cut.inTransaction(() => {
-      delete got.a;
-
-      expect("a" in got).toBe(false);
-    });
-
-    expect(got).toEqual({});
-  });
-
-  test("set object", () => {
-    const got = newRoot({} as { a?: { b: boolean } });
-
-    cut.inTransaction(() => {
-      got.a = { b: true };
-
-      expect(got.a.b).toEqual(true);
-    });
-
-    expect(got).toEqual({
-      a: { b: true },
-    });
-  });
-
-  test("set object + set", () => {
-    const got = newRoot({} as { a?: { b: boolean } });
-
-    cut.inTransaction(() => {
-      got.a = { b: true };
-    });
-
-    expect(got).toEqual({
-      a: { b: true },
-    });
-
-    cut.inTransaction(() => {
-      (got.a as { b: boolean }).b = false;
-    });
-
-    expect(got).toEqual({
-      a: { b: false },
-    });
-  });
-
-  test("nested", () => {
-    const got = newRoot({} as { a?: { b: boolean } });
-
-    cut.inTransaction(() => {
-      got.a = { b: true };
-
-      cut.inTransaction(() => {
-        (got.a as { b: boolean }).b = false;
-      });
-
-      expect(got).toEqual({
-        a: { b: false },
-      });
-    });
-
-    expect(got).toEqual({
-      a: { b: false },
-    });
-  });
-});
-
-suite("inTransaction abort", () => {
-  test("newRoot object property", () => {
-    const got = newRoot({ a: { b: true } } as { a: { b: boolean } });
-
+    let buf: ReturnType<typeof MockBuffer> | undefined;
     expect(() => {
       cut.inTransaction(() => {
-        got.a.b = false;
-        throw "abort";
+        buf = cut.currentTx!.getBuffer(target, MockBuffer);
+        throw new Error("abort");
       });
     }).toThrow();
 
-    expect(got).toEqual({
-      a: { b: true },
-    });
-  });
-
-  test("set", () => {
-    const got = newRoot({ a: true } as { a: boolean });
-
-    expect(() => {
-      cut.inTransaction(() => {
-        got.a = false;
-        throw "abort";
-      });
-    }).toThrow();
-
-    expect(got).toEqual({
-      a: true,
-    });
-  });
-
-  test("delete", () => {
-    const got = newRoot({ a: true } as { a?: boolean });
-
-    expect(() => {
-      cut.inTransaction(() => {
-        delete got.a;
-        throw "abort";
-      });
-    }).toThrow();
-
-    expect(got).toEqual({
-      a: true,
-    });
-  });
-
-  test("nested outer", () => {
-    const got = newRoot({} as { a?: { b: boolean } });
-
-    expect(() => {
-      cut.inTransaction(() => {
-        got.a = { b: true };
-
-        cut.inTransaction(() => {
-          (got.a as { b: boolean }).b = false;
-        });
-
-        throw "abort";
-      });
-    }).toThrow();
-
-    expect(got).toEqual({});
-  });
-
-  test("nested inner", () => {
-    const got = newRoot({} as { a?: { b: boolean } });
-
-    cut.inTransaction(() => {
-      got.a = { b: true };
-
-      expect(() => {
-        cut.inTransaction(() => {
-          (got.a as { b: boolean }).b = false;
-
-          throw "abort";
-        });
-      }).toThrow();
-
-      expect(got).toEqual({
-        a: { b: true },
-      });
-    });
-
-    expect(got).toEqual({
-      a: { b: true },
-    });
+    expect(buf.commit).not.toHaveBeenCalled();
   });
 });
 
@@ -371,7 +109,7 @@ suite("hooks", () => {
   test("dispose clean", () => {
     hooks.dispose = vi.fn();
 
-    const tx = cut.newTransaction();
+    const tx = new cut.TransactionImpl(2);
     tx.dispose();
 
     expect(hooks.dispose).toBeCalledWith(tx, /*uncommitted=*/ false);
@@ -380,12 +118,11 @@ suite("hooks", () => {
   test("dispose uncommitted", () => {
     hooks.dispose = vi.fn();
 
-    const root = newRoot({ a: true });
-    const tx = cut.newTransaction();
+    const target = { a: true, [GENERATION]: 1 };
+    const tx = new cut.TransactionImpl(2);
+
     try {
-      tx.call(() => {
-        root.a = false;
-      });
+      tx.getBuffer(target, MockBuffer);
     } finally {
       tx.dispose();
     }
@@ -396,12 +133,9 @@ suite("hooks", () => {
   test("dispose committed", () => {
     hooks.dispose = vi.fn();
 
-    const root = newRoot({ a: true });
-    const tx = cut.newTransaction();
+    const tx = new cut.TransactionImpl(2);
+
     try {
-      tx.call(() => {
-        root.a = false;
-      });
       tx.commit();
     } finally {
       tx.dispose();
@@ -413,12 +147,11 @@ suite("hooks", () => {
   test("dispose committed", () => {
     hooks.dispose = vi.fn();
 
-    const root = newRoot({ a: true });
-    const tx = cut.newTransaction();
+    const target = { a: true, [GENERATION]: 1 };
+    const tx = new cut.TransactionImpl(2);
+
     try {
-      tx.call(() => {
-        root.a = false;
-      });
+      tx.getBuffer(target, MockBuffer);
       tx.commit();
     } finally {
       tx.dispose();
@@ -431,7 +164,8 @@ suite("hooks", () => {
     const leave = vi.fn();
     hooks.enter = vi.fn(() => leave);
 
-    const tx = cut.newTransaction();
+    const tx = new cut.TransactionImpl(2);
+
     try {
       tx.call(() => {
         expect(hooks.enter).toBeCalledWith(tx);
@@ -447,7 +181,8 @@ suite("hooks", () => {
     const postCommit = vi.fn();
     hooks.commit = vi.fn(() => postCommit);
 
-    const tx = cut.newTransaction();
+    const tx = new cut.TransactionImpl(2);
+
     try {
       tx.commit();
     } finally {
@@ -464,13 +199,23 @@ suite("hooks", () => {
       changes.push(...newChanges);
     };
 
-    const root = newRoot({ a: true, b: true } as { a: boolean; b?: boolean });
-    const tx = cut.newTransaction();
+    const target = { a: true, [GENERATION]: 1 };
+    const tx = new cut.TransactionImpl(2);
+
+    const buf = new MockBuffer();
+    buf.changes.mockReturnValue([
+      {
+        type: "deletevalue",
+        target,
+        property: "b",
+      },
+    ]);
+
     try {
-      tx.call(() => {
-        root.a = false;
-        delete root.b;
-      });
+      tx.getBuffer(
+        target,
+        vi.fn().mockImplementation(() => buf),
+      );
       tx.commit();
     } finally {
       tx.dispose();
@@ -478,14 +223,8 @@ suite("hooks", () => {
 
     expect(changes).toEqual([
       {
-        type: "setvalue",
-        target: root,
-        property: "a",
-        value: false,
-      },
-      {
         type: "deletevalue",
-        target: root,
+        target,
         property: "b",
       },
     ]);

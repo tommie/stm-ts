@@ -1,6 +1,6 @@
-import { DeleteValueChange, SetValueChange } from "./change";
+import { Change } from "./change";
 import { hooks } from "./hooks";
-import { AnyObject, AnyProp, AnyTarget, GENERATION, Generation, proxies } from "./object";
+import { AnyObject, AnyTarget } from "./object";
 
 export interface Transaction {
   // Calls the function with this transaction as the current one. Changes to
@@ -26,94 +26,71 @@ export interface Transaction {
 // nested transaction, and committing it will only make the data visible to the
 // outer transaction.
 export function newTransaction(): Transaction {
-  return new TransactionImpl(++prevGeneration, currentTx);
+  const tx = new TransactionImpl(++prevGeneration, currentTx);
+  hooks.newTransaction(tx);
+  return tx;
 }
 
-class TransactionImpl implements Transaction {
-  private readonly touched = new Map<AnyTarget, Map<AnyProp, Generation | undefined>>();
-  private readonly enumerated = new Set<AnyTarget>();
-  private uncommitted = new Map<AnyTarget, Map<AnyProp, Value>>();
+let prevGeneration = 0;
+
+// Returns the current generation.
+export function getGeneration() {
+  return prevGeneration;
+}
+
+// Increments the generation and returns the new value.
+export function incrementGeneration() {
+  return ++prevGeneration;
+}
+
+export class TransactionImpl implements Transaction {
+  private buffers = new Map<AnyTarget, Buffer>();
 
   public constructor(
-    private readonly generation: number,
+    readonly generation: number,
     private readonly outerTx?: TransactionImpl,
   ) {
     txRegistry.register(
       this,
-      [this.uncommitted, new Error("dispose not called on STM transaction")],
+      [this.buffers, new Error("dispose not called on STM transaction")],
       this,
     );
   }
 
   public dispose() {
     txRegistry.unregister(this);
-    hooks.dispose(this, this.uncommitted.size > 0);
+    hooks.dispose(this, this.buffers.size > 0);
   }
 
   public commit() {
-    this.checkConflicts();
+    if (this.outerTx) {
+      for (const [target, buf] of this.buffers) {
+        buf.checkMergeableInto(
+          this.outerTx.getBuffer(target, buf.constructor as BufferConstructor),
+        );
+      }
+    } else {
+      for (const [, buf] of this.buffers) {
+        buf.checkCommittable();
+      }
+    }
 
     const postCommit = hooks.commit(this, this.changes(), Boolean(this.outerTx));
 
     try {
       if (this.outerTx) {
-        // Merge touched.
-        for (const [target, props] of this.touched) {
-          for (const [prop] of props) {
-            this.outerTx.setTouched(target, prop);
-          }
-        }
-
-        // Merge uncommitted.
-        for (const [target, props] of this.uncommitted) {
-          for (const [prop, v] of props) {
-            this.outerTx.setValue(target, prop, v);
-          }
+        for (const [target, buf] of this.buffers) {
+          buf.mergeInto(this.outerTx.getBuffer(target, buf.constructor as BufferConstructor));
         }
       } else {
-        for (const [target, props] of this.uncommitted) {
-          for (const [prop, v] of props) {
-            if (isTombstone(v)) delete target[prop];
-            else target[prop] = v;
-
-            target[GENERATION].set(prop, this.generation);
-          }
+        for (const [, buf] of this.buffers) {
+          buf.commit();
         }
       }
 
-      this.uncommitted.clear();
+      this.buffers.clear();
     } finally {
       postCommit?.();
-    }
-  }
-
-  // Checks the target objects for both read/write and write/write conflicts.
-  private checkConflicts() {
-    for (const [target, props] of this.touched) {
-      for (const [prop, touchedGen] of props) {
-        const currentGen = target[GENERATION].get(prop);
-        if (currentGen !== touchedGen) {
-          throw new TransactionConflictError(target, prop);
-        }
-      }
-    }
-
-    for (const target of this.enumerated) {
-      // Only keys in this.touched may exist.
-      const props = this.touched.get(target);
-      if (!props) {
-        if (Object.keys(target).length > 0) {
-          throw new TransactionConflictError(target, "Object.entries");
-        }
-
-        continue;
-      }
-
-      for (const prop of Object.keys(target)) {
-        if (!props.has(prop)) {
-          throw new TransactionConflictError(target, "Object.entries");
-        }
-      }
     }
   }
 
@@ -121,23 +98,8 @@ class TransactionImpl implements Transaction {
   // lazy-generate the list. If the commit hook doesn't use the changes, we've
   // spent almost no time on it.
   private *changes() {
-    for (const [target, props] of this.uncommitted) {
-      for (const [property, value] of props) {
-        if (isTombstone(value)) {
-          yield {
-            type: "deletevalue",
-            target: proxies.get(target) ?? target,
-            property,
-          } satisfies DeleteValueChange;
-        } else {
-          yield {
-            type: "setvalue",
-            target: proxies.get(target) ?? target,
-            property,
-            value,
-          } satisfies SetValueChange;
-        }
-      }
+    for (const buf of this.buffers.values()) {
+      yield* buf.changes();
     }
   }
 
@@ -158,94 +120,53 @@ class TransactionImpl implements Transaction {
     }
   }
 
-  // Gets the current value of the target, or TOMBSTONE.
-  getValue(target: AnyTarget, prop: AnyProp): Value {
-    this.setTouched(target, prop);
-
-    const props = this.uncommitted.get(target);
-    if (props) {
-      return props.get(prop);
+  // Gets the buffer of a target, potentially creating a new one.
+  getBuffer<T extends AnyTarget, C extends Change, B extends Buffer<C>>(
+    target: T,
+    cons: BufferConstructor<T, C, B>,
+  ): B {
+    let buf = this.buffers.get(target) as B | undefined;
+    if (!buf) {
+      buf = new cons(target, this, this.outerTx?.getBuffer(target, cons));
+      this.buffers.set(target, buf);
     }
 
-    if (this.outerTx) {
-      return this.outerTx.getValue(target, prop);
-    }
-
-    return prop in target ? target[prop] : TOMBSTONE;
-  }
-
-  // Enumerates the current keys of the target.
-  getKeys(target: AnyTarget) {
-    let out = Reflect.ownKeys(target).filter((k) => k !== GENERATION);
-    const props = this.uncommitted.get(target);
-    if (props) {
-      const seen = new Set(out);
-      const toRemove = new Set<string | symbol>();
-
-      // As long as Map retains insertion order, out should also be in insertion order.
-      for (const [k, v] of props) {
-        const sk = typeof k === "number" ? String(k) : k;
-        if (isTombstone(v)) toRemove.add(sk);
-        else if (!seen.has(sk)) out.push(sk);
-      }
-
-      out = out.filter((k) => !toRemove.has(k));
-      out.forEach((k) => this.setTouched(target, k));
-    }
-
-    this.enumerated.add(target);
-
-    return out;
-  }
-
-  getPropertyDescriptor(target: AnyTarget, prop: AnyProp) {
-    this.setTouched(target, prop);
-
-    const props = this.uncommitted.get(target);
-    if (props) {
-      const v = props.get(prop);
-      if (v) {
-        if (isTombstone(v)) return undefined;
-
-        // TODO: handle exotic properties.
-        return Object.getOwnPropertyDescriptor({ [prop]: v }, prop);
-      }
-    }
-
-    return Object.getOwnPropertyDescriptor(target, prop);
-  }
-
-  // Records a new value for the property.
-  setValue(target: AnyTarget, prop: AnyProp, value: Value) {
-    this.setTouched(target, prop);
-
-    let props = this.uncommitted.get(target);
-    if (!props) {
-      props = new Map();
-      this.uncommitted.set(target, props);
-    }
-
-    props.set(prop, value);
-  }
-
-  // Marks the property as used by the transaction. This is used for both read
-  // and write accesses.
-  setTouched(target: AnyTarget, prop: AnyProp) {
-    let txTarget = this.touched.get(target);
-    if (!txTarget) {
-      txTarget = new Map();
-      this.touched.set(target, txTarget);
-    }
-
-    txTarget.set(prop, target[GENERATION].get(prop));
+    return buf;
   }
 }
 
 export let currentTx: TransactionImpl | undefined;
-export let prevGeneration = 0;
 
-export function incrementGeneration() {
-  return ++prevGeneration;
+export type BufferConstructor<
+  T extends AnyTarget = AnyTarget,
+  C extends Change = Change,
+  B extends Buffer<C> = Buffer<C>,
+> = { new (target: T, tx: TransactionImpl, outer?: B): B };
+
+export abstract class Buffer<C extends Change = Change> {
+  // Returns the changes over baseline carried by this buffer.
+  abstract changes(): Iterable<C>;
+
+  // Checks this buffer for conflicts with the target. Throws
+  // `TransactionConflictError` as appropriate. This is the first phase of
+  // the two-phase commit.
+  abstract checkCommittable(): void;
+
+  // Checks this buffer for conflicts with the target. Throws
+  // `TransactionConflictError` as appropriate. This is the first phase of
+  // the two-phase merge.
+  abstract checkMergeableInto(target: this): void;
+
+  // Commits the changes in this buffer to the target. If this throws an error,
+  // the transaction's targets will be left in an inconsistent state. Ensure
+  // that if `checkCommittable()` returns, then so does `commit()`.
+  abstract commit(): void;
+
+  // Merges this buffer into the target buffer. This is used to commit into
+  // an outer transaction. As with `commit`, if `checkMergeableInto()` returns,
+  // then so must this call, or the outer transaction may be left in an
+  // inconsistent state.
+  abstract mergeInto(target: this): void;
 }
 
 // Creates a transaction and uses it to invoke fun. If `fun` throws an
@@ -264,13 +185,6 @@ export function inTransaction<T>(fun: () => T) {
   }
 }
 
-export const TOMBSTONE = Symbol();
-export type Value = any | typeof TOMBSTONE;
-
-export function isTombstone(v: Value): v is typeof TOMBSTONE {
-  return v === TOMBSTONE;
-}
-
 const txRegistry = new FinalizationRegistry<[Map<AnyObject, any>, Error]>(([uncommitted, err]) => {
   if (uncommitted.size > 0) {
     console.error(err);
@@ -278,10 +192,7 @@ const txRegistry = new FinalizationRegistry<[Map<AnyObject, any>, Error]>(([unco
 });
 
 export class TransactionConflictError extends Error {
-  public constructor(
-    public readonly target: AnyObject,
-    public readonly prop: AnyProp,
-  ) {
-    super("Transaction conflict");
+  public constructor(public readonly target: AnyObject) {
+    super(`Transaction conflict: ${target}`);
   }
 }

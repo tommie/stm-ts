@@ -12,6 +12,9 @@ export const hooks = {
   // also been wrapped where applicable.
   newRoot(_origTarget: AnyObject, _root: AnyTarget) {},
 
+  // Invoked when a transaction was created.
+  newTransaction(_tx: Transaction) {},
+
   // Invoked when the transaction will be committed, after conflicts have
   // been checked. May return a function to be invoked after commit.
   // The changes iterable is only valid until the commit invocation returns.
