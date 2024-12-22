@@ -9,6 +9,7 @@ import {
   proxies,
   SetValueChange,
 } from "./object";
+import { wrapAny } from "./root";
 import {
   Buffer,
   currentTx,
@@ -18,15 +19,7 @@ import {
   TransactionImpl,
 } from "./transaction";
 
-// Wraps the target object in an STM proxy. Properties are recursively
-// wrapped. Objects that have already been wrapped return the existing
-// wrapper, making the function idempotent and safe for cyclic data
-// structures.
-//
-// After wrapping, you must not use the target object; only the returned
-// wrapper. Even just reading directly from the target object will
-// interfere with conflict detection.
-export function newRoot<T extends AnyObject>(target: T): AnyTarget {
+export function newObject<T extends AnyObject>(target: T): AnyTarget {
   let proxy = proxies.get(target);
   if (proxy !== undefined) return proxy;
 
@@ -35,12 +28,10 @@ export function newRoot<T extends AnyObject>(target: T): AnyTarget {
   proxies.set(target, proxy);
 
   for (const [k, v] of Object.entries(target) as Iterable<[keyof T, T[keyof T]]>) {
-    if (typeof v === "object") target[k] = newRoot(v) as T[keyof T];
+    target[k] = wrapAny(v) as T[keyof T];
   }
 
   out[GENERATION] = getGeneration();
-
-  hooks.newRoot(target, proxy);
 
   return proxy;
 }
@@ -81,9 +72,7 @@ const HANDLER: ProxyHandler<AnyTarget> = {
   },
 
   set(target, prop, value) {
-    if (typeof value === "object") {
-      value = newRoot(value);
-    }
+    value = wrapAny(value);
 
     if (currentTx) {
       return Reflect.set(getBuffer(currentTx, target).getWriteValue(), prop, value);

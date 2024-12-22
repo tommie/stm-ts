@@ -1,4 +1,4 @@
-import { afterEach, expect, suite, test, vi } from "vitest";
+import { afterEach, expect, suite, test } from "vitest";
 
 import { Change } from "./change";
 import { hooks } from "./hooks";
@@ -8,7 +8,7 @@ import { TransactionConflictError } from "./transaction";
 
 suite("without transaction", () => {
   test("newRoot/get", () => {
-    const got = cut.newRoot({ a: true } as { a: boolean });
+    const got = cut.newObject({ a: true } as { a: boolean });
 
     expect(got).toEqual({ a: true });
   });
@@ -16,31 +16,31 @@ suite("without transaction", () => {
   test("newRoot cyclic", () => {
     const a: { b: any } = { b: undefined };
     a.b = a;
-    const got = cut.newRoot(a);
+    const got = cut.newObject(a);
 
     expect(got.b).toBe(got);
   });
 
   test("newRoot nested", () => {
-    const got = cut.newRoot(cut.newRoot({ a: true }));
+    const got = cut.newObject(cut.newObject({ a: true }));
 
     expect(got).toEqual({ a: true });
   });
 
   test("has", () => {
-    const got = cut.newRoot({ a: false } as { a: boolean });
+    const got = cut.newObject({ a: false } as { a: boolean });
 
     expect("a" in got).toBe(true);
   });
 
   test("keys", () => {
-    const got = cut.newRoot({ a: false } as { a: boolean });
+    const got = cut.newObject({ a: false } as { a: boolean });
 
     expect(Object.keys(got)).toEqual(["a"]);
   });
 
   test("set", () => {
-    const got = cut.newRoot({ a: false } as { a: boolean });
+    const got = cut.newObject({ a: false } as { a: boolean });
 
     got.a = true;
 
@@ -48,7 +48,7 @@ suite("without transaction", () => {
   });
 
   test("set new", () => {
-    const got = cut.newRoot({ a: false } as { a: boolean; b?: boolean });
+    const got = cut.newObject({ a: false } as { a: boolean; b?: boolean });
 
     got.b = true;
 
@@ -60,7 +60,7 @@ suite("without transaction", () => {
   });
 
   test("deleteProperty", () => {
-    const got = cut.newRoot({ a: false, b: true } as {
+    const got = cut.newObject({ a: false, b: true } as {
       a: boolean;
       b?: boolean;
     });
@@ -206,20 +206,11 @@ suite("hooks", () => {
     Object.assign(hooks, origHooks);
   });
 
-  test("newRoot", () => {
-    hooks.newRoot = vi.fn();
-
-    const want = { a: true } as { a: boolean };
-    const got = cut.newRoot(want);
-
-    expect(hooks.newRoot).toBeCalledWith(want, got);
-  });
-
   test("change set", () => {
     const changes: Change[] = [];
     hooks.change = (_target, changeFun) => changes.push(changeFun());
 
-    const got = cut.newRoot({ a: true } as { a: boolean });
+    const got = cut.newObject({ a: true } as { a: boolean });
     got.a = false;
 
     expect(changes).toEqual([
@@ -236,7 +227,7 @@ suite("hooks", () => {
     const changes: Change[] = [];
     hooks.change = (_target, changeFun) => changes.push(changeFun());
 
-    const got = cut.newRoot({ a: true } as { a: boolean });
+    const got = cut.newObject({ a: true } as { a: boolean });
     delete got.a;
 
     expect(changes).toEqual([
