@@ -5,7 +5,7 @@ import { suites } from "./testutil";
 
 suites((run) => {
   test("clear", () => {
-    const got = cut.newMap(new Map([[42, "hello"]]));
+    const got = cut.wrapMap(new Map([[42, "hello"]]));
 
     run(
       got,
@@ -19,7 +19,7 @@ suites((run) => {
   });
 
   test("delete", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],
@@ -38,7 +38,7 @@ suites((run) => {
   });
 
   test("entries", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],
@@ -58,7 +58,7 @@ suites((run) => {
   });
 
   test("forEach", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, " world"],
@@ -77,7 +77,7 @@ suites((run) => {
   });
 
   test("get", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],
@@ -95,7 +95,7 @@ suites((run) => {
   });
 
   test("has", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],
@@ -113,7 +113,7 @@ suites((run) => {
   });
 
   test("keys", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],
@@ -130,7 +130,7 @@ suites((run) => {
   });
 
   test("set", () => {
-    const got = cut.newMap(new Map([[42, "hello"]]));
+    const got = cut.wrapMap(new Map([[42, "hello"]]));
 
     run(
       got,
@@ -149,7 +149,7 @@ suites((run) => {
   });
 
   test("values", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],
@@ -166,7 +166,7 @@ suites((run) => {
   });
 
   test("iterator", () => {
-    const got = cut.newMap(
+    const got = cut.wrapMap(
       new Map([
         [42, "hello"],
         [43, "world"],

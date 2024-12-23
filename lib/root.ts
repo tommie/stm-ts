@@ -1,6 +1,6 @@
 import { hooks } from "./hooks";
 import { AnyObject, AnyTarget } from "./object";
-import { newObject } from "./proxy";
+import { wrapObject } from "./proxy";
 
 // Wraps the target object in an STM proxy. Properties are recursively
 // wrapped. Objects that have already been wrapped return the existing
@@ -17,7 +17,7 @@ export function newRoot<T extends AnyObject>(target: T): T {
 }
 
 export let wrapAny = function wrapAny<T>(target: T): T {
-  if (typeof target === "object") return newObject(target as AnyObject);
+  if (typeof target === "object") return wrapObject(target as AnyObject);
 
   return target;
 };

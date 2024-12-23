@@ -5,7 +5,7 @@ import { suites } from "./testutil";
 
 suites((run) => {
   test("add", () => {
-    const got = cut.newSet(new Set([42]));
+    const got = cut.wrapSet(new Set([42]));
 
     run(
       got,
@@ -19,7 +19,7 @@ suites((run) => {
   });
 
   test("clear", () => {
-    const got = cut.newSet(new Set([42]));
+    const got = cut.wrapSet(new Set([42]));
 
     run(
       got,
@@ -33,7 +33,7 @@ suites((run) => {
   });
 
   test("delete", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,
@@ -47,7 +47,7 @@ suites((run) => {
   });
 
   test("entries", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,
@@ -62,7 +62,7 @@ suites((run) => {
   });
 
   test("forEach", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,
@@ -76,7 +76,7 @@ suites((run) => {
   });
 
   test("has", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,
@@ -89,7 +89,7 @@ suites((run) => {
   });
 
   test("keys", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,
@@ -101,7 +101,7 @@ suites((run) => {
   });
 
   test("values", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,
@@ -113,7 +113,7 @@ suites((run) => {
   });
 
   test("iterator", () => {
-    const got = cut.newSet(new Set([42, 43]));
+    const got = cut.wrapSet(new Set([42, 43]));
 
     run(
       got,

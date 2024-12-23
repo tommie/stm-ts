@@ -13,7 +13,7 @@ export function init() {
   const origWrapAny = wrapAny;
 
   setWrapAny((target) => {
-    if (target instanceof Map) return newMap(target);
+    if (target instanceof Map) return wrapMap(target);
 
     return origWrapAny(target);
   });
@@ -29,7 +29,7 @@ type AnyMap<K = any, V = any> = AnyTarget &
     [TARGET]: Map<K, V>;
   };
 
-export function newMap<K, V>(target: Map<K, V>): AnyMap<K, V> {
+export function wrapMap<K, V>(target: Map<K, V>): AnyMap<K, V> {
   let proxy = proxies.get(target) as AnyMap<K, V>;
   if (proxy !== undefined) return proxy;
 

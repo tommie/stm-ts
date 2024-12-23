@@ -8,7 +8,7 @@ import { TransactionConflictError } from "./transaction";
 
 suite("without transaction", () => {
   test("newRoot/get", () => {
-    const got = cut.newObject({ a: true } as { a: boolean });
+    const got = cut.wrapObject({ a: true } as { a: boolean });
 
     expect(got).toEqual({ a: true });
   });
@@ -16,31 +16,31 @@ suite("without transaction", () => {
   test("newRoot cyclic", () => {
     const a: { b?: object } = {};
     a.b = a;
-    const got = cut.newObject(a);
+    const got = cut.wrapObject(a);
 
     expect(got.b).toBe(got);
   });
 
   test("newRoot nested", () => {
-    const got = cut.newObject(cut.newObject({ a: true }));
+    const got = cut.wrapObject(cut.wrapObject({ a: true }));
 
     expect(got).toEqual({ a: true });
   });
 
   test("has", () => {
-    const got = cut.newObject({ a: false } as { a: boolean });
+    const got = cut.wrapObject({ a: false } as { a: boolean });
 
     expect("a" in got).toBe(true);
   });
 
   test("keys", () => {
-    const got = cut.newObject({ a: false } as { a: boolean });
+    const got = cut.wrapObject({ a: false } as { a: boolean });
 
     expect(Object.keys(got)).toEqual(["a"]);
   });
 
   test("set", () => {
-    const got = cut.newObject({ a: false } as { a: boolean });
+    const got = cut.wrapObject({ a: false } as { a: boolean });
 
     got.a = true;
 
@@ -48,7 +48,7 @@ suite("without transaction", () => {
   });
 
   test("set new", () => {
-    const got = cut.newObject({ a: false } as { a: boolean; b?: boolean });
+    const got = cut.wrapObject({ a: false } as { a: boolean; b?: boolean });
 
     got.b = true;
 
@@ -60,7 +60,7 @@ suite("without transaction", () => {
   });
 
   test("deleteProperty", () => {
-    const got = cut.newObject({ a: false, b: true } as {
+    const got = cut.wrapObject({ a: false, b: true } as {
       a: boolean;
       b?: boolean;
     });
@@ -210,7 +210,7 @@ suite("hooks", () => {
     const changes: Change[] = [];
     hooks.change = (_target, changeFun) => changes.push(changeFun());
 
-    const got = cut.newObject({ a: true } as { a: boolean });
+    const got = cut.wrapObject({ a: true } as { a: boolean });
     got.a = false;
 
     expect(changes).toEqual([
@@ -227,7 +227,7 @@ suite("hooks", () => {
     const changes: Change[] = [];
     hooks.change = (_target, changeFun) => changes.push(changeFun());
 
-    const got = cut.newObject({ a: true } as { a: boolean });
+    const got = cut.wrapObject({ a: true } as { a: boolean });
     delete got.a;
 
     expect(changes).toEqual([

@@ -19,7 +19,7 @@ import {
   TransactionImpl,
 } from "./transaction";
 
-export function newObject<T extends AnyObject>(target: T): AnyTarget {
+export function wrapObject<T extends AnyObject>(target: T): AnyTarget {
   let proxy = proxies.get(target);
   if (proxy !== undefined) return proxy;
 

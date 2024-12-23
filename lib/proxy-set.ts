@@ -12,7 +12,7 @@ export function init() {
   const origWrapAny = wrapAny;
 
   setWrapAny((target) => {
-    if (target instanceof Set) return newSet(target);
+    if (target instanceof Set) return wrapSet(target);
 
     return origWrapAny(target);
   });
@@ -28,7 +28,7 @@ type AnySet<T = any> = AnyTarget &
     [TARGET]: Set<T>;
   };
 
-export function newSet<T>(target: Set<T>): AnySet<T> {
+export function wrapSet<T>(target: Set<T>): AnySet<T> {
   let proxy = proxies.get(target) as AnySet<T>;
   if (proxy !== undefined) return proxy;
 
