@@ -17,7 +17,7 @@ export function wrapRoot<T extends AnyObject>(target: T): T {
 }
 
 export let wrapAny = function wrapAny<T>(target: T): T {
-  if (typeof target === "object") return wrapObject(target as AnyObject);
+  if (target && typeof target === "object") return wrapObject(target as AnyObject);
 
   return target;
 };
