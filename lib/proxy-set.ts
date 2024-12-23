@@ -19,15 +19,16 @@ export function init() {
 }
 
 const TARGET = Symbol();
-type AnySet = AnyTarget &
-  Set<any> & {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySet<T = any> = AnyTarget &
+  Set<T> & {
     // Stores the underlying target, which has SetProxy as prototype.
     // This is needed because the SetProxy "this" is the Proxy, not
     // the target itself.
-    [TARGET]: Set<any>;
+    [TARGET]: Set<T>;
   };
 
-export function newSet<T extends Set<any>>(target: T): AnySet {
+export function newSet<T>(target: Set<T>): AnySet<T> {
   let proxy = proxies.get(target) as AnySet;
   if (proxy !== undefined) return proxy;
 
@@ -273,6 +274,8 @@ class SetBuffer<T> extends ObjectBufferBase<AnyTarget & Set<T>, SetChange> {
 }
 
 // A change signaling the addition of a set element.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface AddElementChange<T = any> {
   type: "addelement";
   target: Set<T>;
@@ -280,18 +283,23 @@ export interface AddElementChange<T = any> {
 }
 
 // A change signaling the clearing of all set elements.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ClearElementsChange<T = any> {
   type: "clearelements";
   target: Set<T>;
 }
 
 // A change signaling the deletion of a set element.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface DeleteElementChange<T = any> {
   type: "deleteelement";
   target: Set<T>;
   value: T;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SetChange<T = any> = AddElementChange<T> | ClearElementsChange<T> | DeleteElementChange<T>;
 
 declare module "./change" {

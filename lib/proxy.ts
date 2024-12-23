@@ -155,6 +155,7 @@ export abstract class ObjectBufferBase<T extends AnyTarget, C extends Change> ex
 
     for (const prop of Reflect.ownKeys(this.target)) {
       if (!Reflect.has(this.value, prop)) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete this.target[prop];
       }
     }
@@ -173,6 +174,7 @@ export abstract class ObjectBufferBase<T extends AnyTarget, C extends Change> ex
 
     for (const prop of Reflect.ownKeys(target.value)) {
       if (!Reflect.has(target.value, prop)) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
         delete target.value[prop];
       }
     }

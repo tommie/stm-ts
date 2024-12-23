@@ -20,6 +20,8 @@ export const hooks = {
   // The changes iterable is only valid until the commit invocation returns.
   // Note that if you consume the changes, you have to save a copy so you can
   // pass it along to the original commit hook.
+  //
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
   commit(_tx: Transaction, _changes: Iterable<Change>, _nested: boolean): (() => void) | void {},
 
   // Invoked when a proxied object will be updated outside of a transaction.
@@ -34,5 +36,7 @@ export const hooks = {
   // a function to be invoked when the transaction is left. Nested transactions
   // will have the leave function called while unnesting, not when
   // the sub-transaction is entered.
+  //
+  // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
   enter(_tx: Transaction): (() => void) | void {},
 };

@@ -1,6 +1,7 @@
 import "./change";
 
 export type AnyProp = number | string | symbol;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyObject = Record<AnyProp, any>;
 export type AnyTarget = AnyObject & {
   // The current generation of the object. This is present even for properties
@@ -25,6 +26,8 @@ export interface DeleteValueChange {
 }
 
 // A change signaling the replacement of a property value.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface SetValueChange<T = any> {
   type: "setvalue";
   target: AnyTarget;

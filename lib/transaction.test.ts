@@ -79,6 +79,7 @@ suite("inTransaction", () => {
     const target = { a: true, [GENERATION]: 1 };
 
     const buf = cut.inTransaction(() => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return cut.currentTx!.getBuffer(target, MockBuffer);
     });
 
@@ -91,6 +92,7 @@ suite("inTransaction", () => {
     let buf: ReturnType<typeof MockBuffer> | undefined;
     expect(() => {
       cut.inTransaction(() => {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         buf = cut.currentTx!.getBuffer(target, MockBuffer);
         throw new Error("abort");
       });

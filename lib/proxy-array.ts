@@ -26,15 +26,16 @@ export function init() {
 }
 
 const TARGET = Symbol();
-type AnyArray = AnyTarget &
-  any[] & {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyArray<T = any> = AnyTarget &
+  T[] & {
     // Stores the underlying target, which has ArrayProxy as prototype.
     // This is needed because the ArrayProxy "this" is the Proxy, not
     // the target itself.
-    [TARGET]: any[];
+    [TARGET]: T[];
   };
 
-export function newArray<T extends any[]>(target: T): AnyArray {
+export function newArray<T>(target: T[]): AnyArray<T> {
   let proxy = proxies.get(target) as AnyArray;
   if (proxy !== undefined) return proxy;
 
@@ -148,10 +149,7 @@ class ArrayProxy<T> extends Array<T> {
       );
     }
 
-    const out = super.concat(...arrs);
-    delete (out as Partial<AnyTarget>)[TARGET];
-    delete (out as Partial<AnyTarget>)[GENERATION];
-    return out;
+    return withoutTargetProps(super.concat(...arrs));
   }
 
   override copyWithin(target: number, start: number, end?: number) {
@@ -189,6 +187,7 @@ class ArrayProxy<T> extends Array<T> {
 
   override every<S extends T>(
     predicate: (value: T, index: number, array: T[]) => value is S,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     thisArg?: any,
   ): this is S[] {
     if (currentTx) {
@@ -237,10 +236,7 @@ class ArrayProxy<T> extends Array<T> {
       );
     }
 
-    const out = super.filter(predicate, thisArg);
-    delete (out as Partial<AnyTarget>)[TARGET];
-    delete (out as Partial<AnyTarget>)[GENERATION];
-    return out;
+    return withoutTargetProps(super.filter(predicate, thisArg));
   }
 
   override find<S extends T, This = undefined>(
@@ -281,10 +277,7 @@ class ArrayProxy<T> extends Array<T> {
       ) as FlatArray<A, D>[];
     }
 
-    const out = super.flat(depth) as FlatArray<A, D>[];
-    delete (out as Partial<AnyTarget>)[TARGET];
-    delete (out as Partial<AnyTarget>)[GENERATION];
-    return out;
+    return withoutTargetProps(super.flat(depth) as FlatArray<A, D>[]);
   }
 
   override flatMap<U, This = undefined>(
@@ -299,10 +292,7 @@ class ArrayProxy<T> extends Array<T> {
       >(getBuffer(currentTx, this[TARGET]).getReadValue(), callbackFn, thisArg);
     }
 
-    const out = super.flatMap(callbackFn, thisArg);
-    delete (out as Partial<AnyTarget>)[TARGET];
-    delete (out as Partial<AnyTarget>)[GENERATION];
-    return out;
+    return withoutTargetProps(super.flatMap(callbackFn, thisArg));
   }
 
   override forEach<This = undefined>(
@@ -400,10 +390,7 @@ class ArrayProxy<T> extends Array<T> {
       ) as U[];
     }
 
-    const out = super.map(callbackFn, thisArg);
-    delete (out as Partial<AnyTarget>)[TARGET];
-    delete (out as Partial<AnyTarget>)[GENERATION];
-    return out;
+    return withoutTargetProps(super.map(callbackFn, thisArg));
   }
 
   override pop() {
@@ -466,6 +453,7 @@ class ArrayProxy<T> extends Array<T> {
     }
 
     // TODO: why is reduce typing broken?
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return super.reduce(callbackFn as any, initialValue);
   }
 
@@ -492,6 +480,7 @@ class ArrayProxy<T> extends Array<T> {
     }
 
     // TODO: why is reduceRight typing broken?
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return super.reduceRight(callbackFn as any, initialValue);
   }
 
@@ -530,14 +519,12 @@ class ArrayProxy<T> extends Array<T> {
       return Array.prototype.slice.call(getBuffer(tx, this[TARGET]).getReadValue(), start, end);
     }
 
-    const out = super.slice(start, end);
-    delete (out as Partial<AnyTarget>)[TARGET];
-    delete (out as Partial<AnyTarget>)[GENERATION];
-    return out;
+    return withoutTargetProps(super.slice(start, end));
   }
 
   override some<S extends T>(
     predicate: (value: T, index: number, array: T[]) => value is S,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     thisArg?: any,
   ) {
     if (currentTx) {
@@ -703,19 +690,34 @@ class ArrayBuffer<T> extends ObjectBufferBase<AnyTarget & T[], ArrayChange> {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function withoutTargetProps<T extends any[]>(arr: T) {
+  /* eslint-disable @typescript-eslint/no-dynamic-delete */
+  delete (arr as Partial<AnyTarget>)[TARGET];
+  delete (arr as Partial<AnyTarget>)[GENERATION];
+  /* eslint-enable @typescript-eslint/no-dynamic-delete */
+  return arr;
+}
+
 // A change signaling the reversal of an array.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ReverseChange<T extends any[] = any[]> {
   type: "reverse";
   target: T;
 }
 
 // A change signaling the sorting of an array.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface SortChange<T extends any[] = any[]> {
   type: "sort";
   target: T;
 }
 
 // A change signaling the splicing of an array.
+//
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface SpliceChange<T extends any[] = any[]> {
   type: "splice";
   target: T;
@@ -724,6 +726,7 @@ export interface SpliceChange<T extends any[] = any[]> {
   newItems: T;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ArrayChange<T extends any[] = any[]> =
   | DeleteValueChange
   | SetValueChange

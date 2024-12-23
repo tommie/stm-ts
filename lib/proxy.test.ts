@@ -14,7 +14,7 @@ suite("without transaction", () => {
   });
 
   test("newRoot cyclic", () => {
-    const a: { b: any } = { b: undefined };
+    const a: { b?: object } = {};
     a.b = a;
     const got = cut.newObject(a);
 

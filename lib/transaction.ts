@@ -110,6 +110,7 @@ export class TransactionImpl implements Transaction {
       const leave = hooks.enter(this);
 
       try {
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
         currentTx = this;
         return fun();
       } finally {
@@ -185,6 +186,7 @@ export function inTransaction<T>(fun: () => T) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const txRegistry = new FinalizationRegistry<[Map<AnyObject, any>, Error]>(([uncommitted, err]) => {
   if (uncommitted.size > 0) {
     console.error(err);
