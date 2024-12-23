@@ -65,6 +65,50 @@ export function suites(
       expect(target).toEqual(orig);
     });
   });
+
+  suite("nested inTransaction commit + commit", () => {
+    tests((target, apply, expectApplied) => {
+      inTransaction(() => {
+        inTransaction(apply);
+        expectApplied(target);
+      });
+      expectApplied(target);
+    });
+  });
+
+  suite("nested inTransaction commit + abort", () => {
+    tests((target, apply, expectApplied) => {
+      const orig = makeCopy(target);
+
+      expect(() => {
+        inTransaction(() => {
+          inTransaction(apply);
+          expectApplied(target);
+          throw "abort";
+        });
+      }).toThrow();
+
+      expect(target).toEqual(orig);
+    });
+  });
+
+  suite("nested inTransaction abort + commit", () => {
+    tests((target, apply) => {
+      const orig = makeCopy(target);
+
+      inTransaction(() => {
+        expect(() =>
+          inTransaction(() => {
+            apply();
+            throw "abort";
+          }),
+        ).toThrow();
+        expect(target).toEqual(orig);
+      });
+
+      expect(target).toEqual(orig);
+    });
+  });
 }
 
 function makeCopy<T>(value: T) {

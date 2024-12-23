@@ -57,9 +57,9 @@ export function newSet<T>(target: Set<T>): AnySet<T> {
 
 const HANDLER: ProxyHandler<AnySet> = {
   get(target, prop) {
-    if (prop === TARGET) return target[TARGET];
+    if (currentTx && !NATIVE_PROPS.has(prop)) {
+      if (prop === TARGET) return target[TARGET];
 
-    if (currentTx) {
       return Reflect.get(getBuffer(currentTx, target).getReadValue(), prop);
     }
 
@@ -127,6 +127,12 @@ const HANDLER: ProxyHandler<AnySet> = {
     return Reflect.deleteProperty(target, prop);
   },
 };
+
+// When a method resolution occurs, we need to always return target[prop]:
+// the receiver will be the proxy, so we cannot use that if
+// tx.value !== tx.target, since that's a straight Set. This only mattesr
+// for `get`.
+const NATIVE_PROPS = new Set(Reflect.ownKeys(Set.prototype));
 
 // We cannot use `super` to call methods, as that results in "Method called
 // on incompatible receiver."
@@ -256,6 +262,8 @@ class SetBuffer<T> extends ObjectBufferBase<AnyTarget & Set<T>, SetChange> {
   }
 
   override mergeInto(target: this) {
+    if (this.value === target.value) return;
+
     target.touched ??= this.touched;
 
     if (target.value === target.target) {

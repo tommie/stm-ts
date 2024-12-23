@@ -56,11 +56,17 @@ export function newMap<K, V>(target: Map<K, V>): AnyMap<K, V> {
   return proxy;
 }
 
+// When a method resolution occurs, we need to always return target[prop]:
+// the receiver will be the proxy, so we cannot use that if
+// tx.value !== tx.target, since that's a straight Map. This only mattesr
+// for `get`.
+const NATIVE_PROPS = new Set(Reflect.ownKeys(Map.prototype));
+
 const HANDLER: ProxyHandler<AnyMap> = {
   get(target, prop) {
-    if (prop === TARGET) return target[TARGET];
+    if (currentTx && !NATIVE_PROPS.has(prop)) {
+      if (prop === TARGET) return target[TARGET];
 
-    if (currentTx) {
       return Reflect.get(getBuffer(currentTx, target).getReadValue(), prop);
     }
 
@@ -266,6 +272,8 @@ class MapBuffer<K, V> extends ObjectBufferBase<AnyMap<K, V>, MapChange> {
   }
 
   override mergeInto(target: this) {
+    if (this.value === target.value) return;
+
     target.touched ??= this.touched;
 
     if (target.value === target.target) {

@@ -143,9 +143,11 @@ class ArrayProxy<T> extends Array<T> {
   override concat(...arrs: ConcatArray<T>[]) {
     if (currentTx) {
       const tx = currentTx;
-      return Array.prototype.concat.call(
-        getBuffer(tx, this[TARGET]).getReadValue(),
-        arrs.map((arr) => (!isTarget(arr) ? arr : getBuffer(tx, arr[TARGET]).getReadValue())),
+      return withoutTargetProps(
+        Array.prototype.concat.call(
+          getBuffer(tx, this[TARGET]).getReadValue(),
+          ...arrs.map((arr) => (!isTarget(arr) ? arr : getBuffer(tx, arr[TARGET]).getReadValue())),
+        ),
       );
     }
 
@@ -229,10 +231,12 @@ class ArrayProxy<T> extends Array<T> {
     thisArg?: This,
   ) {
     if (currentTx) {
-      return Array.prototype.filter.call(
-        getBuffer(currentTx, this[TARGET]).getReadValue(),
-        predicate,
-        thisArg,
+      return withoutTargetProps(
+        Array.prototype.filter.call(
+          getBuffer(currentTx, this[TARGET]).getReadValue(),
+          predicate,
+          thisArg,
+        ),
       );
     }
 
@@ -271,10 +275,12 @@ class ArrayProxy<T> extends Array<T> {
 
   override flat<A, D extends number = 1>(depth?: D | undefined) {
     if (currentTx) {
-      return Array.prototype.flat.call(
-        getBuffer(currentTx, this[TARGET]).getReadValue(),
-        depth,
-      ) as FlatArray<A, D>[];
+      return withoutTargetProps(
+        Array.prototype.flat.call(
+          getBuffer(currentTx, this[TARGET]).getReadValue(),
+          depth,
+        ) as FlatArray<A, D>[],
+      );
     }
 
     return withoutTargetProps(super.flat(depth) as FlatArray<A, D>[]);
@@ -285,11 +291,13 @@ class ArrayProxy<T> extends Array<T> {
     thisArg?: This,
   ) {
     if (currentTx) {
-      return Array.prototype.flatMap.call<
-        this,
-        [(this: This, value: T, index: number, array: T[]) => U | readonly U[], This | undefined],
-        U[]
-      >(getBuffer(currentTx, this[TARGET]).getReadValue(), callbackFn, thisArg);
+      return withoutTargetProps(
+        Array.prototype.flatMap.call<
+          this,
+          [(this: This, value: T, index: number, array: T[]) => U | readonly U[], This | undefined],
+          U[]
+        >(getBuffer(currentTx, this[TARGET]).getReadValue(), callbackFn, thisArg),
+      );
     }
 
     return withoutTargetProps(super.flatMap(callbackFn, thisArg));
@@ -383,11 +391,13 @@ class ArrayProxy<T> extends Array<T> {
     thisArg?: This,
   ) {
     if (currentTx) {
-      return Array.prototype.map.call(
-        getBuffer(currentTx, this[TARGET]).getReadValue(),
-        callbackFn,
-        thisArg,
-      ) as U[];
+      return withoutTargetProps(
+        Array.prototype.map.call(
+          getBuffer(currentTx, this[TARGET]).getReadValue(),
+          callbackFn,
+          thisArg,
+        ) as U[],
+      );
     }
 
     return withoutTargetProps(super.map(callbackFn, thisArg));
@@ -516,7 +526,9 @@ class ArrayProxy<T> extends Array<T> {
   override slice(start?: number, end?: number) {
     if (currentTx) {
       const tx = currentTx;
-      return Array.prototype.slice.call(getBuffer(tx, this[TARGET]).getReadValue(), start, end);
+      return withoutTargetProps(
+        Array.prototype.slice.call(getBuffer(tx, this[TARGET]).getReadValue(), start, end),
+      );
     }
 
     return withoutTargetProps(super.slice(start, end));
@@ -674,6 +686,8 @@ class ArrayBuffer<T> extends ObjectBufferBase<AnyTarget & T[], ArrayChange> {
   }
 
   override mergeInto(target: this) {
+    if (this.value === target.value) return;
+
     target.touched ??= this.touched;
 
     if (target.value === target.target) {
@@ -682,7 +696,7 @@ class ArrayBuffer<T> extends ObjectBufferBase<AnyTarget & T[], ArrayChange> {
     }
 
     super.mergeInto(target);
-    target.value.splice(0, this.target.length, ...(this.value as T[]));
+    target.value.splice(0, target.value.length, ...(this.value as T[]));
   }
 
   override makeCopy() {
