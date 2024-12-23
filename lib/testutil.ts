@@ -16,6 +16,19 @@ expect.addEqualityTesters([
 
     return true;
   },
+  (a, b) => {
+    if (!(a instanceof Map) || !(b instanceof Map)) return undefined;
+
+    for (const [k, v] of a) {
+      if (!b.has(k) || b.get(k) !== v) return false;
+    }
+
+    for (const [k, v] of b) {
+      if (!a.has(k) || a.get(k) !== v) return false;
+    }
+
+    return true;
+  },
 ]);
 
 // Runs application functions and expection functions in three difference
@@ -55,8 +68,9 @@ export function suites(
 }
 
 function makeCopy<T>(value: T) {
-  if (value instanceof Set) return new Set(value);
   if (Array.isArray(value)) return [...value];
+  if (value instanceof Set) return new Set(value);
+  if (value instanceof Map) return new Map(value);
 
   return JSON.parse(JSON.stringify(value));
 }

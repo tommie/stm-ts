@@ -5,8 +5,9 @@ This library provides an STM primitive for TypeScript, simplifying the case wher
 ## Features
 
 - Simple interface that uses [Proxy](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy/Proxy) objects to transparently wrap objects.
-- Support for objects, nested objects, cyclic data structures.
+- Support for objects, nested objects, and cyclic data structures.
 - Support for nested transactions.
+- Supports Array, Map, and Set natively.
 - Hooks for extending the functionality.
 - Provides a list of changes for creating logs, transmitting patches, etc.
 - Provides consistency by tracking read/write and write/write conflicts.
@@ -20,7 +21,7 @@ If you find it useful, please let me know.
 
 ### TODO
 
-- [ ] Map
+- [ ] Benchmarking
 
 ## Example
 
