@@ -3,14 +3,6 @@ import { afterEach, expect, suite, test, vi } from "vitest";
 import { hooks } from "./hooks";
 import * as cut from "./root";
 
-suite("wrapRoot", () => {
-  test("class", () => {
-    class Some {}
-
-    expect(() => cut.wrapRoot(new Some())).toThrow();
-  });
-});
-
 suite("hooks", () => {
   const origHooks = { ...hooks };
   afterEach(() => {

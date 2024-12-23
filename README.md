@@ -22,6 +22,7 @@ If you find it useful, please let me know.
 ### TODO
 
 - [ ] Benchmarking
+- [ ] API for extending transaction buffers for custom types
 
 ## Example
 
@@ -66,3 +67,25 @@ function validateData(data: typeof myData) {
 
 relocate(myData);
 ```
+
+## How It Works
+
+Objects are wrapped in `Proxy` so we can intercept both reads and writes.
+If there is no current transaction, calls go straight through to the original (target) object.
+There are proxies specific to objects like Array, Map and Set.
+
+Transactions contain a list of object copies, called `Buffers`.
+Transactions do copy-on-write of whole objects, storing them locally.
+When committing, a two-phase commit first ensures there are no conflicts, then copies the local data into the target.
+
+If there is a nested transaction, instead of copying to the target, data is copied to the outer transaction on commit.
+This is called "merge" internally, because it merges `Buffers`.
+
+Buffers are dedicated to one type of object.
+Plain objects (`ObjectBuffer`) is the default, but arrays, Maps and Sets have custom buffers.
+This allows differentiating read from write based on which method is being invoked.
+The API for subclassing buffers is currently private, but this shouldn't stop classes and prototype chains from working in the simple case.
+If you are using STM-ts on top of another proxy where a "read" operation (get/has/ownKeys) actually modifies the data, the assumptions this library makes do not hold.
+
+Hooks, inspired by [Preact](https://preactjs.com/), are called at various points in the process, to allow extending the functionality.
+The most interesting hook is probably the `commit` hook, which receives a list of changes that will be applied.
