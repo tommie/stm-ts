@@ -138,7 +138,7 @@ class SetProxy<T> extends Set<T> {
       return this;
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnySet, () => ({
       type: "addelement",
       target: this,
       value,
@@ -154,7 +154,7 @@ class SetProxy<T> extends Set<T> {
       return;
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnySet, () => ({
       type: "clearelements",
       target: this,
     }));
@@ -167,7 +167,7 @@ class SetProxy<T> extends Set<T> {
       return getBuffer(currentTx, this[TARGET]).getWriteValue().delete(value);
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnySet, () => ({
       type: "deleteelement",
       target: this,
       value,

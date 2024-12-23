@@ -10,9 +10,9 @@ import { newObject } from "./proxy";
 // After wrapping, you must not use the target object; only the returned
 // wrapper. Even just reading directly from the target object will
 // interfere with conflict detection.
-export function newRoot<T extends AnyObject>(target: T): AnyTarget {
-  const proxy = wrapAny(target) as AnyTarget;
-  hooks.newRoot(target, proxy);
+export function newRoot<T extends AnyObject>(target: T): T {
+  const proxy = wrapAny(target);
+  hooks.newRoot(target as AnyTarget, proxy);
   return proxy;
 }
 

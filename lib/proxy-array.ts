@@ -167,7 +167,7 @@ class ArrayProxy<T> extends Array<T> {
     }
 
     end ??= this.length;
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start: target,
@@ -214,7 +214,7 @@ class ArrayProxy<T> extends Array<T> {
 
     start ??= 0;
     end ??= this.length;
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start,
@@ -411,7 +411,7 @@ class ArrayProxy<T> extends Array<T> {
       return Array.prototype.pop.call(getBuffer(currentTx, this[TARGET]).getWriteValue());
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start: this.length - 1,
@@ -432,7 +432,7 @@ class ArrayProxy<T> extends Array<T> {
       );
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start: this.length - 1,
@@ -500,7 +500,7 @@ class ArrayProxy<T> extends Array<T> {
       return Array.prototype.reverse.call(getBuffer(currentTx, this[TARGET]).getWriteValue());
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "reverse",
       target: this as AnyArray,
     }));
@@ -513,7 +513,7 @@ class ArrayProxy<T> extends Array<T> {
       return Array.prototype.shift.call(getBuffer(currentTx, this[TARGET]).getWriteValue());
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start: 0,
@@ -558,7 +558,7 @@ class ArrayProxy<T> extends Array<T> {
       return this;
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "sort",
       target: this as AnyArray,
     }));
@@ -578,7 +578,7 @@ class ArrayProxy<T> extends Array<T> {
       );
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start,
@@ -630,7 +630,7 @@ class ArrayProxy<T> extends Array<T> {
       );
     }
 
-    hooks.change(this, () => ({
+    hooks.change(this as AnyArray, () => ({
       type: "splice",
       target: this as AnyArray,
       start: 0,

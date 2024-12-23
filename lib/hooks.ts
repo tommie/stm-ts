@@ -10,7 +10,7 @@ import { Transaction } from "./transaction";
 export const hooks = {
   // Invoked when `newRoot` has created a new root, and its properties have
   // also been wrapped where applicable.
-  newRoot(_origTarget: AnyObject, _root: AnyTarget) {},
+  newRoot(_origTarget: AnyTarget, _root: AnyObject) {},
 
   // Invoked when a transaction was created.
   newTransaction(_tx: Transaction) {},
@@ -25,7 +25,7 @@ export const hooks = {
   // Invoked when a proxied object will be updated outside of a transaction.
   // The change is returned by a function to avoid doing unneccessary work if
   // no hook is interested in the change.
-  change(_target: AnyObject, _changeFun: () => Change) {},
+  change(_target: AnyTarget, _changeFun: () => Change) {},
 
   // Invoked when the transaction is being disposed.
   dispose(_tx: Transaction, _uncommitted: boolean) {},
