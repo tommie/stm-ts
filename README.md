@@ -26,9 +26,9 @@ If you find it useful, please let me know.
 ## Example
 
 ```typescript
-import { newRoot, inTransaction } from "stm";
+import { inTransaction, wrapRoot } from "stm";
 
-const myData = myRoot({
+const myData = wrapRoot({
   name: "Me",
   address: "Mystreet 42",
   attributes: {

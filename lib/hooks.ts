@@ -8,9 +8,9 @@ import { Transaction } from "./transaction";
 // hook, so if you need to disable it, that will have to happen inside your
 // hook code.
 export const hooks = {
-  // Invoked when `newRoot` has created a new root, and its properties have
+  // Invoked when `wrapRoot` has created a new root, and its properties have
   // also been wrapped where applicable.
-  newRoot(_origTarget: AnyTarget, _root: AnyObject) {},
+  wrapRoot(_origTarget: AnyTarget, _root: AnyObject) {},
 
   // Invoked when a transaction was created.
   newTransaction(_tx: Transaction) {},

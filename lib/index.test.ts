@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import * as cut from "./index";
 
 test("import runs initArray", () => {
-  const got = cut.newRoot([] as number[]);
+  const got = cut.wrapRoot([] as number[]);
 
   expect(() => {
     cut.inTransaction(() => {
