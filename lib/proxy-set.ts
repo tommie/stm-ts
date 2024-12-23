@@ -29,10 +29,10 @@ type AnySet<T = any> = AnyTarget &
   };
 
 export function newSet<T>(target: Set<T>): AnySet<T> {
-  let proxy = proxies.get(target) as AnySet;
+  let proxy = proxies.get(target) as AnySet<T>;
   if (proxy !== undefined) return proxy;
 
-  const out = target as AnySet;
+  const out = target as AnySet<T>;
   proxy = new Proxy(out, HANDLER);
   proxies.set(target, proxy);
 
@@ -171,7 +171,7 @@ class SetProxy<T> extends Set<T> {
     hooks.change(this as AnySet, () => ({
       type: "deleteelement",
       target: this,
-      value,
+      key: value,
     }));
 
     return Set.prototype.delete.call(this[TARGET], value);
@@ -287,16 +287,16 @@ export interface AddElementChange<T = any> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ClearElementsChange<T = any> {
   type: "clearelements";
-  target: Set<T>;
+  target: T;
 }
 
 // A change signaling the deletion of a set element.
 //
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export interface DeleteElementChange<T = any> {
+export interface DeleteElementChange<T = any, K = any> {
   type: "deleteelement";
-  target: Set<T>;
-  value: T;
+  target: T;
+  key: K;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
