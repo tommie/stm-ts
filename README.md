@@ -21,7 +21,6 @@ If you find it useful, please let me know.
 ### TODO
 
 - [ ] Map
-- [ ] Set
 
 ## Example
 

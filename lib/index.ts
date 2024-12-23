@@ -1,4 +1,5 @@
 import { init as initArray } from "./proxy-array";
+import { init as initSet } from "./proxy-set";
 
 export type { Change, TransactionChanges } from "./change";
 export { hooks } from "./hooks";
@@ -8,3 +9,4 @@ export { inTransaction, newTransaction, TransactionConflictError } from "./trans
 export type { Transaction } from "./transaction";
 
 initArray();
+initSet();

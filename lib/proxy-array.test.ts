@@ -1,45 +1,7 @@
-import { expect, suite, test } from "vitest";
+import { expect, test } from "vitest";
 
 import * as cut from "./proxy-array";
-import { inTransaction } from "./transaction";
-
-// Runs application functions and expection functions in three difference
-// transaction scenarios.
-function suites(
-  tests: (
-    run: <T>(target: T[], apply: () => void, expectApplied: (v: T[]) => void) => void,
-  ) => void,
-) {
-  suite("without transaction", () => {
-    tests((target, apply, expectApplied) => {
-      apply();
-      expectApplied(target);
-    });
-  });
-
-  suite("inTransaction commit", () => {
-    tests((target, apply, expectApplied) => {
-      inTransaction(apply);
-      expectApplied(target);
-    });
-  });
-
-  suite("inTransaction abort", () => {
-    tests((target, apply, expectApplied) => {
-      const orig = [...target];
-
-      expect(() =>
-        inTransaction(() => {
-          apply();
-          expectApplied(target);
-          throw "abort";
-        }),
-      ).toThrow();
-
-      expect(target).toEqual(orig);
-    });
-  });
-}
+import { suites } from "./testutil";
 
 suites((run) => {
   test("get", () => {
