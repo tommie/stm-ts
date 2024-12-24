@@ -7,7 +7,7 @@ export interface Transaction {
   // STM-wrapped objects will be queued up and not visible outside these
   // calls until `commit` is invoked. Returns whatever `fun` returns, for
   // convenience. If the function throws an error, the transaction is still
-  // alive.
+  // alive. This is a higher-level interface over `enter()`.
   call<T>(fun: () => T): T;
 
   // Commits the changes to the underlying target objects. Don't use the
@@ -18,6 +18,16 @@ export interface Transaction {
   // eventually call this function. If you don't, there will be an error logged
   // in the console when the transaction is garbage collected.
   dispose(): void;
+
+  // Sets this transaction as the current. Returns a function that must be
+  // called to leave the transaction. A transaction can be entered and left
+  // any number of times. Use try-finally to ensure your code is exception-safe,
+  // or use `call()`. The function is re-entrant (i.e. it can be nested.)
+  //
+  // Note that `await` expressions will relinquish control to the main loop,
+  // so you should be really careful when using this function in async
+  // functions.
+  enter(): () => void;
 }
 
 // Creates a new transaction for making modifications to any object that has
@@ -104,21 +114,26 @@ export class TransactionImpl implements Transaction {
   }
 
   public call<T>(fun: () => T) {
-    const prevTx = currentTx;
+    const leave = this.enter();
 
     try {
-      const leave = hooks.enter(this);
-
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
-        currentTx = this;
-        return fun();
-      } finally {
-        leave?.();
-      }
+      return fun();
     } finally {
-      currentTx = prevTx;
+      leave();
     }
+  }
+
+  public enter() {
+    const prevTx = currentTx;
+    const leave = hooks.enter(this);
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    currentTx = this;
+
+    return () => {
+      currentTx = prevTx;
+      leave?.();
+    };
   }
 
   // Gets the buffer of a target, potentially creating a new one.
